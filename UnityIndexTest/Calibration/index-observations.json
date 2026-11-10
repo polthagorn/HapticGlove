@@ -1,0 +1,46 @@
+{
+  "finger": "index",
+  "sensor_gpio": 39,
+  "servo_gpio": 17,
+  "servo_release_us": 2050,
+  "release_status": "user reports acceptable clearance at full curl",
+  "fully_closed_contact_us": 2000,
+  "open_reference_us": 1000,
+  "open_reference_status": "horn fitted near stop with finger fully open; not force-tested",
+  "approach_direction": "decreasing pulse width",
+  "sensor_open_closed_calibration": "user reports completed in Unity PlayerPrefs",
+  "middle_contact_us": 1460,
+  "automatic_hardware_contact_control_enabled": false,
+  "scope": "observations for this index assembly only; not loaded by runtime",
+  "middle_sensor_raw": 400,
+  "middle_sensor_status": "user reported Raw 400 at approximately Index50%; no matching servo position measured yet",
+  "middle_contact_status": "user reported target1460 after instructed to stop before touching at Raw400 (~50%)",
+  "worn_test_status": "failed: physical stop touched before virtual surface while logical RELEASE, forcing caused backdrive and repeated contact/release",
+  "automatic_sensor_hardware_control_enabled": false,
+  "interpolated_clearance_status": "not physically validated; do not repeat worn test",
+  "stationary_test": {
+    "ball_percent": 26.6,
+    "physical_first_touch": [
+      {
+        "pulse_us": 1245,
+        "percent": 7.2
+      },
+      {
+        "pulse_us": 1325,
+        "percent": 29.1
+      }
+    ],
+    "next_bench_candidate_us": 1316,
+    "candidate_verified": true,
+    "verified_stop_us": 1316,
+    "verified_stop_physical_percent": 27.1,
+    "verified_stop_gap_points": 0.5
+  },
+  "off_hand_grasp_at_26_6_percent": {
+    "prepare_us": 1325,
+    "contact_us": 1316,
+    "release_us": 2050,
+    "hold_and_release": "User reports stop held until cable was relaxed, then returned.",
+    "normal_grasp_speed": "User reports perceived physical and visual contact coincided on the table. No latency or force measurement."
+  }
+}

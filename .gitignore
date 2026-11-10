@@ -1,0 +1,37 @@
+# Unity: generated folders (rebuilt when the project is opened)
+UnityIndexTest/[Ll]ibrary/
+UnityIndexTest/[Tt]emp/
+UnityIndexTest/[Oo]bj/
+UnityIndexTest/[Ll]ogs/
+UnityIndexTest/[Uu]ser[Ss]ettings/
+UnityIndexTest/[Bb]uild/
+UnityIndexTest/[Bb]uilds/
+UnityIndexTest/[Mm]emoryCaptures/
+UnityIndexTest/[Rr]ecordings/
+
+# IDE / OS
+.vs/
+.vscode/
+.idea/
+*.csproj
+*.sln
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Unity crash / build leftovers
+sysinfo.txt
+*.apk
+*.aab
+*.unitypackage
+crashlytics-build.properties

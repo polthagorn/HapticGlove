@@ -28,7 +28,10 @@ public partial class GloveReceiver
     float lastFistCurl = -1;
     string fistReply = "";
     string fistStatus = "Not run yet";
-    string fistStepText = "20", fistSettleText = "250", fistToText = "1000";
+    // Arm mounting (2026-11-12): 0 deg = 500 us = arm just touching the pot reel; 2500 us = furthest away.
+    // Must match firmware MIN_US / MAX_US.
+    const int ServoMinUs = 500, ServoMaxUs = 2500;
+    string fistStepText = "20", fistSettleText = "250", fistToText = "500";
     float fistMinCurl = 0.7f;         // "make a fist" check before starting (slider in tab 3)
     const float FistJumpCurl = 0.20f; // finger jumped open between two steps = user relaxed
     readonly List<string> fistBuffer = new List<string>();
@@ -37,7 +40,7 @@ public partial class GloveReceiver
     SortedDictionary<int,int[]> fistNew = new SortedDictionary<int,int[]>();
     float[] fistCurveUs, fistCurveCurl;
     float fistCurveTime = -1;
-    string FistTablePath { get { return Path.Combine(Application.persistentDataPath, "servo-fist-calibration.csv"); } }
+    string FistTablePath { get { return Path.Combine(Application.persistentDataPath, "servo-fist-calibration-v2.csv"); } }
 
     // --- window ---
     int simpleTab;
@@ -55,7 +58,7 @@ public partial class GloveReceiver
         string why;
         int desired = BallStopUs(out why);
         // Straight to the ball's stop in both directions, at the Move to ball / Release speeds.
-        // Only limit: the servo range (BallStopUs clamps to 1000..2050, release is 2500).
+        // Only limit: the servo range (BallStopUs clamps to ServoMinUs..ServoMaxUs).
         simpleTarget = desired;
         simpleStatus = why;
     }
@@ -78,15 +81,12 @@ public partial class GloveReceiver
             }
             source = "your hand calibration";
         } else {
-            bool inRange;
-            us = IndexSphereDrive.BenchPulse(limit, out inRange);
-            if (!inRange) {
-                why = "Ball at " + pct + " is outside the bench table (7–27%). Run tab 3 Servo calibration. Arm released";
-                return SimpleReleaseUs;
-            }
-            source = "bench table — run tab 3 for your hand";
+            // The old bench table was measured with the arm on its previous spline tooth,
+            // so it no longer matches. A tab 3 sweep is required.
+            why = "No servo calibration for the new arm position yet: run tab 3 first. Arm released";
+            return SimpleReleaseUs;
         }
-        us = Mathf.Clamp(us, 1000, 2050);
+        us = Mathf.Clamp(us, ServoMinUs, ServoMaxUs);
         why = "Arm at " + us + " us → finger stops at " + pct + "  (" + source + ")";
         return us;
     }
@@ -172,7 +172,7 @@ public partial class GloveReceiver
         int step, settle, to;
         if (!int.TryParse(fistStepText, out step) || !int.TryParse(fistSettleText, out settle) ||
             !int.TryParse(fistToText, out to)) { fistStatus = "Settings must be whole numbers"; return; }
-        step = Mathf.Clamp(step, 5, 200); settle = Mathf.Clamp(settle, 50, 3000); to = Mathf.Clamp(to, 1000, 2000);
+        step = Mathf.Clamp(step, 5, 200); settle = Mathf.Clamp(settle, 50, 3000); to = Mathf.Clamp(to, ServoMinUs, ServoMaxUs - 50);
         fistStepText = step.ToString(); fistSettleText = settle.ToString(); fistToText = to.ToString();
         if (FistBlock().Length > 0) return;
         int lo, hi;
@@ -182,7 +182,7 @@ public partial class GloveReceiver
         fistReply = "";
         fistMode = fistSweeping = true;
         fistStatus = "Sweeping… keep pushing your fist against the arm";
-        SubmitFist("CAL4,SWEEP,2050," + to + "," + step + "," + settle + "," + lo + "," + hi);
+        SubmitFist("CAL4,SWEEP," + ServoMaxUs + "," + to + "," + step + "," + settle + "," + lo + "," + hi);
     }
 
     void StopFist(string reason)
@@ -321,7 +321,7 @@ public partial class GloveReceiver
             foreach (string text in File.ReadAllLines(FistTablePath)) {
                 string[] p = text.Split(',');
                 int us;
-                if (p.Length != 5 || !int.TryParse(p[0], out us) || us < 1000 || us > 2050) continue;
+                if (p.Length != 5 || !int.TryParse(p[0], out us) || us < ServoMinUs || us > ServoMaxUs) continue;
                 int[] row = new int[4];
                 bool ok = true;
                 for (int i = 0; ok && i < 4; i++) ok = int.TryParse(p[i + 1], out row[i]);
@@ -406,10 +406,10 @@ public partial class GloveReceiver
     }
 
     // --- Tab 4: manual servo (firmware CAL3 degree mode, true degrees) ---
-    bool manualSafeRange = true, showManualTable;
+    // New mounting: 0° = arm just touching the pot reel (the real limit), 180° = furthest away.
+    bool showManualTable;
     float manualSlider = 90;
-    int ManualMin { get { return manualSafeRange ? 45 : 0; } }
-    // Up to 180 is the clearance (release) side: the arm moves away from the finger.
+    int ManualMin { get { return 0; } }
     int ManualMax { get { return 180; } }
 
     void ManualMove(int degree)
@@ -424,17 +424,7 @@ public partial class GloveReceiver
         GUILayout.Label("Pick the servo angle yourself.", boldLabel);
         GUILayout.Label("0° = 500 us, 180° = 2500 us. The arm moves there at about 45°/s and holds.\n" +
             "Leaving this tab, STOP or Space releases it.", wrapLabel);
-        bool safe = GUILayout.Toggle(manualSafeRange, "Don't go below 45° (1000 us), where the arm pushes into the finger");
-        if (safe != manualSafeRange) {
-            manualSafeRange = safe;
-            if (degreeMode && (degreeTarget < ManualMin || degreeTarget > ManualMax)) ManualMove(degreeTarget);
-            GUIUtility.ExitGUI();
-        }
-        if (!manualSafeRange)
-            GUILayout.Label("⚠ Full 0–180°: below 45° the arm pushes past the tested range into the finger. " +
-                "Use only with the horn off or the glove NOT worn.", wrapLabel);
-        GUILayout.Label("Above 139° (2044 us) is extra clearance, past the tested range: watch that the arm " +
-            "doesn't hit the glove on the release side.", wrapLabel);
+        GUILayout.Label("0° = arm just touching the pot reel (its limit). Higher = further from the reel.", wrapLabel);
         GUILayout.Space(6);
 
         bool can = CanUseDegree && !degreeSweeping;
@@ -613,7 +603,7 @@ public partial class GloveReceiver
         if (!fistSweeping) {
             GUILayout.Label(fistTable.Count >= 2
                 ? "Saved table: " + fistTable.Count + " points, covers " + FistRangeLabel() + " curl. The ball uses it."
-                : "No saved table: the ball uses the bench table (7–27% only).", wrapLabel);
+                : "No table for the new arm position yet: tab 2 needs one. Run the sweep.", wrapLabel);
         }
         if (shown.Count > 0) {
             showFistTable = GUILayout.Toggle(showFistTable, "Show readings (" + shown.Count + ")");
@@ -626,7 +616,7 @@ public partial class GloveReceiver
                 }
             }
             GUI.enabled = !fistMode && fistTable.Count > 0;
-            if (GUILayout.Button("Delete saved table (use bench table)")) {
+            if (GUILayout.Button("Delete saved table")) {
                 fistTable = new SortedDictionary<int,int[]>();
                 fistCurveTime = -1;
                 SaveFistTable();

@@ -82,7 +82,7 @@ public partial class GloveReceiver : MonoBehaviour
     Vector2 degreePanelScroll;
     readonly System.Collections.Generic.SortedDictionary<int,int[]> degreeTable =
         new System.Collections.Generic.SortedDictionary<int,int[]>();
-    string DegreeTablePath { get { return Path.Combine(Application.persistentDataPath, "servo-degree-calibration.csv"); } }
+    string DegreeTablePath { get { return Path.Combine(Application.persistentDataPath, "servo-degree-calibration-v2.csv"); } }
     public bool TryGetDegreeReading(int degree, out int indexRaw) {
         int[] row;
         indexRaw = degreeTable.TryGetValue(degree, out row) ? row[2] : -1;

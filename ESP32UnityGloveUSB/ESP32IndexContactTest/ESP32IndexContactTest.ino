@@ -1,18 +1,18 @@
 // OFF-HAND sphere-to-index actuation test. Manual CAL2 retained.
-// HAP mode starts/releases at 2500us (180 deg, full clearance). Targets 1000..2500us.
+// Arm mounting (2026-11-12): 0 deg = 500us = arm just touching the pot reel (inner limit);
+// higher pulses move the arm away from the reel. Usable range 500..2500us.
+// HAP mode starts/releases at 2500us (180 deg, full clearance). Targets 500..2500us.
 // Manual setup reference1000; HAP mode is separate and starts at 2500.
 // CAL2 STOP detaches in place; HAP STOP/timeout returns to 2500 then detaches.
 // GPIO17 index only; interpolation is provisional and force is not measured.
-// Power only one servo; test outside the hand. ARM can initially jump to 1000us.
+// Power only one servo. ARM can initially jump to 1000us (CAL2) or 2500us (HAP/CAL3/CAL4).
 // Original five-potentiometer packet, pins and averaging preserved.
-// CAL3 = true-degree bench calibration: 0..180 deg -> DEG0_US..DEG180_US.
-// Horn connected: stay inside 45..139 deg (1000..2044us, the tested band).
-// Full 0..180 only with the horn OFF (servo-only check; the pot will not track).
+// CAL3 = true-degree moves: 0..180 deg -> DEG0_US..DEG180_US.
 //   CAL3,DEG,<0-180>                       move and hold (keepalive CAL3,KEEP < 500ms)
 //   CAL3,SWEEP,<from>,<to>,<step>,<settleMs>  firmware steps, settles, prints
 //   SWEEP3,<deg>,<us>,<thumb>,<index>,<middle>,<ring>,<little> per point, then SWEEP3,DONE
 //   CAL3,STOP                              detach in place
-// CAL4 = WORN fist sweep (stays inside 1000..2050us). User holds a fist against the arm;
+// CAL4 = WORN fist sweep (stays inside 500..2500us). User holds a fist against the arm;
 // the arm steps from <from> to <to>, and at every step the index pot is sampled 10 times.
 //   CAL4,SWEEP,<fromUs>,<toUs>,<stepUs>,<settleMs>,<lowRaw>,<highRaw>
 //   The arm moves in at 400us/s until the pot changes (FISTACK,CONTACT,<us>), then steps.
@@ -33,7 +33,8 @@ bool discard = false, limited = false;
 uint32_t lastValid = 0;
 
 const uint8_t SERVO_PIN = 17;
-const int RELEASE_US = 1000, MIN_US = 1000, MAX_US = 2050;
+// MIN_US = arm at the pot reel (0 deg). MAX_US = furthest from the reel (180 deg).
+const int RELEASE_US = 1000, MIN_US = 500, MAX_US = 2500;
 bool armed = false, returning = false;
 bool contactMode = false;
 const int CONTACT_RELEASE_US = 2500; // rest/release = 180 deg (more clearance; was 2050)
@@ -61,7 +62,7 @@ const int FIST_CONTACT_RAW = 40;     // pot change that means the arm reached th
 bool fistFree = false, fistContact = false;
 int fistStartRaw = 0;
 bool fistMode = false, fistSweeping = false;
-int fistTo = 1000, fistStep = 20, fistLow = 5, fistHigh = 4090;
+int fistTo = 500, fistStep = 20, fistLow = 5, fistHigh = 4090;
 uint32_t fistSettleMs = 250, fistSettleStart = 0, fistLastCheck = 0;
 
 void writePulse() {
@@ -121,7 +122,7 @@ void calCommand() {
     char* end;
     long value = strtol(line + 12, &end, 10);
     if (end == line + 12 || *end || value < MIN_US || value > MAX_US) {
-      Serial.println("BENCHACK,REJECT_RANGE_1000_2050"); return;
+      Serial.println("BENCHACK,REJECT_RANGE_500_2500"); return;
     }
     targetUs = value;
     lastCal = millis();
